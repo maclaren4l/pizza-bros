@@ -99,8 +99,17 @@ window.PB = window.PB || {};
     transparent: 'transparent',
   };
 
+  // Snap a logical coordinate to the device-pixel grid. The canvas is drawn
+  // at SCALE (3x) with nearest-neighbor scaling, so a logical value that is a
+  // multiple of 1/SCALE maps to a whole device pixel -- every logical pixel
+  // still renders as a crisp SCALE x SCALE block (no shimmer), but the camera
+  // can scroll in device-pixel steps instead of coarse whole-logical-pixel
+  // steps, which makes horizontal scrolling ~SCALE times smoother.
+  function snapPx(v) { return Math.round(v * SCALE) / SCALE; }
+
   PB.TILE = TILE;
   PB.SCALE = SCALE;
+  PB.snapPx = snapPx;
   PB.LOGICAL_WIDTH = LOGICAL_WIDTH;
   PB.LOGICAL_HEIGHT = LOGICAL_HEIGHT;
   PB.CANVAS_WIDTH = CANVAS_WIDTH;

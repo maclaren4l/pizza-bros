@@ -60,6 +60,7 @@ window.PB = window.PB || {};
     this.musicKicked = false;
     this.frameTime = 0;
     this.lastTs = null;
+    this.alpha = 0; // render interpolation factor (leftover accumulator / STEP)
   }
 
   Game.prototype.init = function (canvas) {
@@ -128,12 +129,44 @@ window.PB = window.PB || {};
     // Global toggles work in (almost) any state.
     if (PB.input.pressed.mute) PB.audio.toggleMute();
 
+    // Fixed-timestep with render interpolation. Snapshot every moving object's
+    // position before each sim step; the number of steps taken this frame can
+    // be 0, 1, or 2 depending on how the display cadence beats against the
+    // fixed step, which -- rendered raw -- shows up as a freeze-then-jump
+    // stutter. Instead we render at the interpolated point between the last two
+    // sim states (alpha = leftover accumulator), so on-screen motion is smooth
+    // and even no matter how the steps land.
     while (this.frameTime >= STEP) {
+      this.snapshotPrev();
       this.update(STEP);
       this.frameTime -= STEP;
       PB.input.endFrame();
     }
+    this.alpha = this.frameTime / STEP;
     this.render();
+  };
+
+  // Records the pre-step position of the player and every moving entity so the
+  // renderer can interpolate toward the post-step position.
+  Game.prototype.snapshotPrev = function () {
+    const pl = this.player;
+    if (pl) { pl.prevX = pl.x; pl.prevY = pl.y; }
+    const lists = [this.enemies, this.coins, this.risingCoins, this.powerups, this.particles];
+    for (let i = 0; i < lists.length; i++) {
+      const arr = lists[i];
+      for (let j = 0; j < arr.length; j++) { arr[j].prevX = arr[j].x; arr[j].prevY = arr[j].y; }
+    }
+  };
+
+  // Interpolated x / y for an entity (falls back to the current position for
+  // anything spawned this frame that has no previous snapshot yet).
+  Game.prototype.ix = function (e) {
+    const pv = (e.prevX == null) ? e.x : e.prevX;
+    return pv + (e.x - pv) * this.alpha;
+  };
+  Game.prototype.iy = function (e) {
+    const pv = (e.prevY == null) ? e.y : e.prevY;
+    return pv + (e.y - pv) * this.alpha;
   };
 
   Game.prototype.update = function (dt) {
@@ -499,7 +532,15 @@ window.PB = window.PB || {};
 
   Game.prototype.renderWorld = function () {
     const ctx = this.ctx;
-    const cam = this.camera.x;
+    // Derive the camera from the *interpolated* player position (not the last
+    // sim tick) so it advances smoothly every rendered frame, then snap it to
+    // the device-pixel grid. Snapping to device pixels (multiples of 1/SCALE)
+    // rather than whole logical pixels keeps tiles crisp under nearest-neighbor
+    // scaling while letting the world scroll in fine, even steps.
+    const worldW = this.level.width * TILE;
+    let camX = this.ix(this.player) - PB.LOGICAL_WIDTH / 2;
+    camX = Math.max(0, Math.min(camX, Math.max(0, worldW - PB.LOGICAL_WIDTH)));
+    const cam = PB.snapPx(camX);
     const sheets = PB.sprites.sheets;
 
     // Sky.
@@ -537,31 +578,32 @@ window.PB = window.PB || {};
     for (let i = 0; i < this.coins.length; i++) {
       const c = this.coins[i];
       const frame = Math.floor(c.animTimer * 8) % 4;
-      PB.sprites.draw(ctx, sheets.coin[frame], c.x - cam, c.y + 4, TILE, 8, 1);
+      PB.sprites.draw(ctx, sheets.coin[frame], this.ix(c) - cam, this.iy(c) + 4, TILE, 8, 1);
     }
     for (let i = 0; i < this.risingCoins.length; i++) {
       const c = this.risingCoins[i];
-      PB.sprites.draw(ctx, sheets.coin[0], c.x - cam, c.y + 4, TILE, 8, 1);
+      PB.sprites.draw(ctx, sheets.coin[0], this.ix(c) - cam, this.iy(c) + 4, TILE, 8, 1);
     }
 
     // Power-ups.
     for (let i = 0; i < this.powerups.length; i++) {
       const item = this.powerups[i];
-      PB.sprites.draw(ctx, sheets.powerup, item.x - cam, item.y, TILE, TILE, 1);
+      PB.sprites.draw(ctx, sheets.powerup, this.ix(item) - cam, this.iy(item), TILE, TILE, 1);
     }
 
     // Enemies.
     for (let i = 0; i < this.enemies.length; i++) {
       const en = this.enemies[i];
-      const sx = en.x - cam;
+      const sx = this.ix(en) - cam;
+      const sy = this.iy(en);
       if (en.type === 'grunt') {
         const img = en.state === 'squashed' ? sheets.grunt.squashed : sheets.grunt.walk[en.animFrame];
-        PB.sprites.draw(ctx, img, sx, en.y, TILE, TILE, en.vx < 0 ? -1 : 1);
+        PB.sprites.draw(ctx, img, sx, sy, TILE, TILE, en.vx < 0 ? -1 : 1);
       } else {
         let img;
         if (en.state === 'walk') img = sheets.shellcrab.walk[en.animFrame];
         else img = sheets.shellcrab.shell;
-        PB.sprites.draw(ctx, img, sx, en.y, TILE, TILE, en.vx < 0 ? -1 : 1);
+        PB.sprites.draw(ctx, img, sx, sy, TILE, TILE, en.vx < 0 ? -1 : 1);
       }
     }
 
@@ -577,12 +619,12 @@ window.PB = window.PB || {};
       if (p.kind === 'score') {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = '#fff8c0';
-        ctx.fillText(p.text, p.x - cam + 8, p.y);
+        ctx.fillText(p.text, PB.snapPx(this.ix(p) - cam) + 8, PB.snapPx(this.iy(p)));
         ctx.globalAlpha = 1;
       } else if (p.kind === 'debris') {
         ctx.globalAlpha = alpha;
         ctx.fillStyle = PB.COLORS.brick;
-        ctx.fillRect(p.x - cam, p.y, 3, 3);
+        ctx.fillRect(PB.snapPx(this.ix(p) - cam), PB.snapPx(this.iy(p)), 3, 3);
         ctx.globalAlpha = 1;
       }
     }
@@ -594,15 +636,16 @@ window.PB = window.PB || {};
     const ctx = this.ctx;
     for (let i = 0; i < list.length; i++) {
       const d = list[i];
-      const sx = d.x - cam * factor;
+      const sx = PB.snapPx(d.x - cam * factor);
       if (sx < -w || sx > PB.LOGICAL_WIDTH + w) continue;
-      ctx.drawImage(sprite, sx, d.y, w, h);
+      ctx.drawImage(sprite, sx, PB.snapPx(d.y), w, h);
     }
   };
 
   Game.prototype.drawTile = function (t, sx, sy, col, row) {
     const ctx = this.ctx;
     const sheets = PB.sprites.sheets;
+    sx = PB.snapPx(sx); sy = PB.snapPx(sy);
     switch (t) {
       case 'ground': ctx.drawImage(sheets.ground, sx, sy, TILE, TILE); break;
       case 'brick': ctx.drawImage(sheets.brick, sx, sy, TILE, TILE); break;
@@ -631,7 +674,7 @@ window.PB = window.PB || {};
     else if (p.state === 'skid') img = size.skid;
     else if (p.state === 'walk') img = size.walk[p.animFrame];
     else img = size.idle;
-    PB.sprites.draw(this.ctx, img, p.x - cam, p.y, TILE, h, p.facing);
+    PB.sprites.draw(this.ctx, img, this.ix(p) - cam, this.iy(p), TILE, h, p.facing);
   };
 
   Game.prototype.renderHud = function () {

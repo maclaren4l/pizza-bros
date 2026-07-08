@@ -608,6 +608,12 @@ window.PB = window.PB || {};
   // logical size, flipping horizontally when facing = -1.
   function draw(ctx, canvas, x, y, w, h, facing) {
     if (!canvas) return;
+    // Snap to the device-pixel grid (multiples of 1/SCALE). This keeps every
+    // sprite crisp under nearest-neighbor scaling while allowing sub-logical-
+    // pixel positioning, so motion reads smoothly instead of stepping a whole
+    // logical pixel at a time.
+    x = PB.snapPx(x);
+    y = PB.snapPx(y);
     ctx.save();
     ctx.imageSmoothingEnabled = false;
     if (facing === -1) {
