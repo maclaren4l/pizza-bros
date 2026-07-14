@@ -25,7 +25,13 @@
 //     * pipes are at most 2 tiles tall  -> a running jump clears them,
 //     * pits are at most 3 columns wide -> jumpable even at walk speed,
 //     * '?'/'P'/'B' blocks sit on row 6 (bottom edge 2 tiles up)         -> bumpable,
-//     * floating coins never sit higher than row 4                       -> reachable at apex.
+//     * floating coins never sit higher than row 4                       -> reachable at apex,
+//     * floating platforms (built with `platform()`) rise at most 2 tiles
+//       above the surface a player jumps from                           -> clearable at apex,
+//     * gaps between platforms/ground are at most 3 tiles at walk speed,
+//       or up to 5 tiles where the level guarantees a run-up beforehand  -> jumpable,
+//     * staircases (`stairsUp`/`stairsDown`) rise/fall 1 tile per column,
+//       so each step is a plain running-jump hop, never a blind climb.
 //   Rows are laid out on a fixed-width grid so every row is exactly the
 //   same length (verified by the parser's uniform-width assumption).
 window.PB = window.PB || {};
@@ -71,7 +77,35 @@ window.PB = window.PB || {};
     }
   }
   function enemy(rows, col, kind) { put(rows, GROUND_TOP - 1, col, kind); } // stands on ground
+  // Places an enemy standing on top of a solid tile at surfaceRow (e.g. a
+  // platform or staircase step, not just the ground).
+  function enemyAt(rows, col, surfaceRow, kind) { put(rows, surfaceRow - 1, col, kind); }
   function flag(rows, col) { for (let r = 2; r < GROUND_TOP; r++) put(rows, r, col, 'F'); }
+
+  // A floating platform: `len` solid tiles wide, sitting at row `r` (r is the
+  // row of the walkable surface itself). Defaults to brick.
+  function platform(rows, colStart, len, r, ch) {
+    ch = ch || 'B';
+    for (let i = 0; i < len; i++) put(rows, r, colStart + i, ch);
+  }
+
+  // Ascending staircase: each column is one tile taller than the last,
+  // starting at 1 tile and climbing to `steps` tiles, feet resting on the
+  // ground. Classic Mario-style -- clear each step with a running hop.
+  function stairsUp(rows, colStart, steps, ch) {
+    ch = ch || 'B';
+    for (let s = 0; s < steps; s++) {
+      for (let h = 0; h <= s; h++) put(rows, GROUND_TOP - 1 - h, colStart + s, ch);
+    }
+  }
+  // Mirror of stairsUp: starts tall and descends by one tile per column.
+  function stairsDown(rows, colStart, steps, ch) {
+    ch = ch || 'B';
+    for (let s = 0; s < steps; s++) {
+      const height = steps - s;
+      for (let h = 0; h < height; h++) put(rows, GROUND_TOP - 1 - h, colStart + s, ch);
+    }
+  }
 
   function toStrings(rows) { return rows.map(function (r) { return r.join(''); }); }
 
@@ -79,47 +113,61 @@ window.PB = window.PB || {};
   // LEVEL 1 -- "Pepperoni Plains"  (gentle: teaches jumping & coins)
   // ------------------------------------------------------------------
   function buildLevel1() {
-    const W = 200;
+    const W = 220;
     const rows = makeGrid(W);
-    ground(rows, [[40, 42], [96, 98], [150, 152]]);
+    ground(rows, [[44, 46], [110, 112], [172, 174]]);
 
     // Early reward: a coin trail then an early power-up.
-    coinLine(rows, 8, 8, 8);
-    block(rows, 14, 'P');            // power-up early
-    coinLine(rows, 8, 22, 4);
+    coinLine(rows, 8, 6, 8);
+    block(rows, 16, 'P');             // power-up early
+
+    // Warm-up platform -- floating over solid ground, so a missed jump just
+    // drops back to the floor. Teaches "jump onto a ledge" before it matters.
+    platform(rows, 20, 3, 8); coinLine(rows, 6, 20, 3);
+    coinLine(rows, 8, 26, 4);
 
     // Coin/question cluster.
-    block(rows, 28, '?'); block(rows, 30, 'B'); block(rows, 32, '?');
-    coinLine(rows, 7, 28, 5);
+    block(rows, 34, '?'); block(rows, 36, 'B'); block(rows, 38, '?');
+    coinLine(rows, 7, 34, 5);
 
-    // First pipe with a coin arc over it.
-    pipe(rows, 50); coinArc(rows, 50, 5);
-    // Pit with coins strung across the gap.
-    coinArc(rows, 41, 5);
+    // First pit, coins strung across the gap.
+    coinArc(rows, 45, 5);
+    // Pipe with a coin arc over it.
+    pipe(rows, 54); coinArc(rows, 54, 5);
 
-    // Mid-section: bricks, coins, a couple of pipes.
-    block(rows, 62, '?'); block(rows, 64, '?'); block(rows, 66, '?');
-    coinLine(rows, 7, 61, 7);
-    pipe(rows, 78); coinArc(rows, 78, 5);
+    // A little brick hill -- 3 steps up, a short flat peak, 3 steps down.
+    // Every step is a 1-tile hop, so it's still an easy clear.
+    stairsUp(rows, 58, 3);
+    platform(rows, 60, 4, 7);
+    stairsDown(rows, 64, 3);
+    coinLine(rows, 5, 61, 2);          // peak reward
 
-    coinLine(rows, 8, 86, 10);
-    block(rows, 90, '?');
-    coinArc(rows, 97, 5);            // over the second pit
+    coinLine(rows, 8, 74, 7);
+    pipe(rows, 86); coinArc(rows, 86, 5);
 
-    // Later stretch: pipe, block cluster, denser coins.
-    pipe(rows, 116); coinArc(rows, 116, 5);
-    block(rows, 128, '?'); block(rows, 130, 'B'); block(rows, 132, '?');
-    coinLine(rows, 7, 127, 7);
-    coinArc(rows, 151, 5);           // over the third pit
-    coinLine(rows, 8, 160, 12);
-    block(rows, 170, '?'); block(rows, 172, '?');
-    coinLine(rows, 7, 178, 8);
+    coinLine(rows, 8, 94, 10);
+    block(rows, 100, '?');
+    coinArc(rows, 111, 5);             // over the second pit
 
-    // Enemies -- spread out, escalating toward the end.
-    [18, 34, 58, 70, 88, 104, 120, 138, 158, 176].forEach(function (c) { enemy(rows, c, 'g'); });
-    [72, 122, 168].forEach(function (c) { enemy(rows, c, 'k'); });
+    // Stepping-stone platforms over solid ground -- a short hop-hop-hop
+    // chain, with a grunt patrolling the far one.
+    platform(rows, 120, 4, 8); coinLine(rows, 6, 120, 4);
+    platform(rows, 128, 4, 8); coinLine(rows, 6, 128, 4);
+    enemyAt(rows, 130, 8, 'g');
 
-    flag(rows, 192);
+    pipe(rows, 140); coinArc(rows, 140, 5);
+    block(rows, 148, '?'); block(rows, 150, 'B'); block(rows, 152, '?');
+    coinLine(rows, 7, 147, 7);
+    coinArc(rows, 173, 5);             // over the third pit
+    coinLine(rows, 8, 182, 12);
+    block(rows, 198, '?'); block(rows, 200, '?');
+
+    // Enemies -- spread out, escalating toward the end (avoids pit and
+    // staircase columns so nothing spawns on top of missing/solid tiles).
+    [12, 30, 40, 56, 72, 90, 98, 116, 138, 156, 178, 196].forEach(function (c) { enemy(rows, c, 'g'); });
+    [80, 144, 190, 202].forEach(function (c) { enemy(rows, c, 'k'); });
+
+    flag(rows, 210);
     return toStrings(rows);
   }
 
@@ -128,41 +176,69 @@ window.PB = window.PB || {};
   // still fully clearable -- same height/width caps apply)
   // ------------------------------------------------------------------
   function buildLevel2() {
-    const W = 215;
+    const W = 247;
     const rows = makeGrid(W);
-    ground(rows, [[36, 38], [70, 72], [104, 106], [150, 152], [186, 188]]);
+    // A wider pit (145-152) is only crossable via the bridging platform
+    // placed below -- the level's riskiest jump, since a miss here is a
+    // pit death rather than a soft landing back on solid ground.
+    ground(rows, [[43, 45], [83, 85], [123, 125], [145, 152], [177, 179], [212, 214]]);
 
     coinLine(rows, 8, 8, 6);
-    block(rows, 16, 'P');            // power-up early
-    coinArc(rows, 37, 5);            // over first pit
+    block(rows, 16, 'P');             // power-up early
 
-    block(rows, 46, '?'); block(rows, 48, 'B'); block(rows, 50, '?');
-    coinLine(rows, 7, 45, 7);
-    pipe(rows, 60); coinArc(rows, 60, 5);
-    coinArc(rows, 71, 5);            // over second pit
+    // Stepping-stone chain: three short platforms with 3-tile hops between
+    // them, all over solid ground. A grunt patrols the middle one. A full
+    // 8-tile flat runway follows before the first pit, so landing off the
+    // last stone still leaves room to build up a running jump.
+    platform(rows, 20, 3, 8); coinLine(rows, 6, 20, 3);
+    platform(rows, 26, 3, 8); coinLine(rows, 6, 26, 3);
+    platform(rows, 32, 3, 8); coinLine(rows, 6, 32, 3);
+    enemyAt(rows, 27, 8, 'g');
 
-    coinLine(rows, 8, 78, 10);
-    block(rows, 84, '?'); block(rows, 86, '?');
-    pipe(rows, 96); coinArc(rows, 96, 5);
-    coinArc(rows, 105, 5);           // over third pit
+    coinArc(rows, 44, 5);             // over first pit
 
-    block(rows, 114, '?'); block(rows, 116, 'B'); block(rows, 118, '?');
-    coinLine(rows, 7, 113, 7);
-    pipe(rows, 128); coinArc(rows, 128, 5);
-    coinLine(rows, 8, 136, 12);
+    block(rows, 53, '?'); block(rows, 55, 'B'); block(rows, 57, '?');
+    coinLine(rows, 7, 53, 5);
 
-    pipe(rows, 148); coinArc(rows, 151, 5);   // pipe just before pit
-    block(rows, 162, '?'); block(rows, 164, '?'); block(rows, 166, '?');
-    coinLine(rows, 7, 161, 7);
-    pipe(rows, 176); coinArc(rows, 176, 5);
-    coinArc(rows, 187, 5);           // over final pit
-    coinLine(rows, 8, 194, 10);
+    // Tall brick hill -- 4 steps up, a flat peak guarded by a grunt, 4
+    // steps down. Taller than level 1's hill but still all 1-tile hops.
+    stairsUp(rows, 65, 4);
+    platform(rows, 68, 4, 6);
+    stairsDown(rows, 72, 4);
+    coinLine(rows, 4, 69, 2);          // peak reward, max safe coin height
+    enemyAt(rows, 70, 6, 'g');
 
-    // Enemies -- denser than level 1.
-    [12, 28, 44, 56, 66, 82, 92, 112, 124, 140, 158, 172, 190, 200].forEach(function (c) { enemy(rows, c, 'g'); });
-    [50, 88, 120, 164, 196].forEach(function (c) { enemy(rows, c, 'k'); });
+    pipe(rows, 79); coinArc(rows, 79, 5);
+    coinArc(rows, 84, 5);             // over second pit
 
-    flag(rows, 208);
+    // Wide floating platform over solid ground, patrolled by a grunt and a
+    // shellcrab -- the shell can be stomped/kicked while up there.
+    platform(rows, 103, 5, 8); coinLine(rows, 6, 103, 5);
+    enemyAt(rows, 104, 8, 'g');
+    enemyAt(rows, 106, 8, 'k');
+
+    pipe(rows, 115); coinArc(rows, 115, 5);
+    coinArc(rows, 124, 5);            // over third pit
+
+    // Bridge across the wide pit -- ground/platform/platform/ground, each
+    // hop only 2-3 tiles, but falling short here is fatal.
+    platform(rows, 148, 3, 8); coinLine(rows, 6, 148, 3);
+
+    block(rows, 167, '?'); block(rows, 169, 'B'); block(rows, 171, '?');
+    coinLine(rows, 7, 167, 5);
+    coinArc(rows, 178, 5);            // over fifth pit
+
+    coinLine(rows, 8, 185, 10);
+    pipe(rows, 203); coinArc(rows, 203, 5);
+    coinArc(rows, 213, 5);            // over final pit
+    coinLine(rows, 8, 217, 10);
+    block(rows, 221, '?'); block(rows, 223, '?');
+
+    // Enemies -- denser than level 1, avoiding pit/staircase columns.
+    [12, 51, 59, 77, 95, 117, 131, 139, 157, 165, 171, 187, 195, 205, 219, 227].forEach(function (c) { enemy(rows, c, 'g'); });
+    [76, 111, 141, 173, 209].forEach(function (c) { enemy(rows, c, 'k'); });
+
+    flag(rows, 233);
     return toStrings(rows);
   }
 
