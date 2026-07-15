@@ -39,3 +39,96 @@ html, body {
   letter-spacing: 0.5px;
   border-top: 1px solid #222;
 }
+
+/* Touch controls: hidden by default, shown only when touch.js detects a
+   touch-capable device (adds .touch-device to <html>). Kept as a fixed
+   full-viewport overlay so the buttons track the screen edges regardless of
+   how fitCanvas() has sized the canvas. */
+#touch-controls {
+  display: none;
+}
+
+html.touch-device #footer {
+  display: none;
+}
+
+html.touch-device #touch-controls {
+  display: block;
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.tc-btn {
+  pointer-events: auto;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.45);
+  background: rgba(255, 255, 255, 0.14);
+  color: #fff;
+  font-family: 'Courier New', monospace;
+  font-weight: bold;
+  line-height: 1;
+}
+
+.tc-btn.tc-active {
+  background: rgba(255, 255, 255, 0.38);
+}
+
+.tc-dpad {
+  position: absolute;
+  left: calc(18px + env(safe-area-inset-left));
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  gap: 16px;
+}
+
+.tc-dpad-btn {
+  width: 64px;
+  height: 64px;
+  font-size: 24px;
+}
+
+.tc-actions {
+  position: absolute;
+  right: calc(18px + env(safe-area-inset-right));
+  bottom: calc(18px + env(safe-area-inset-bottom));
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+}
+
+.tc-walk {
+  width: 58px;
+  height: 58px;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+.tc-jump {
+  width: 80px;
+  height: 80px;
+  font-size: 13px;
+}
+
+.tc-top-bar {
+  position: absolute;
+  top: calc(10px + env(safe-area-inset-top));
+  right: calc(10px + env(safe-area-inset-right));
+  display: flex;
+  gap: 10px;
+}
+
+.tc-mini {
+  width: 34px;
+  height: 34px;
+  font-size: 13px;
+}

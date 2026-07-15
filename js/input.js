@@ -26,6 +26,13 @@ window.PB = window.PB || {};
 
   for (const action in KEYMAP) { held[action] = false; pressed[action] = false; }
 
+  // Arrow-key movement always runs (mirrors the touch D-pad, which also
+  // always runs); WASD still needs the run key held, same as before.
+  held.arrowsActive = false;
+  function refreshArrowsActive() {
+    held.arrowsActive = !!(rawDown.ArrowLeft || rawDown.ArrowRight);
+  }
+
   function actionsForCode(code) {
     const out = [];
     for (const action in KEYMAP) {
@@ -43,6 +50,7 @@ window.PB = window.PB || {};
       if (!held[a]) pressed[a] = true;
       held[a] = true;
     }
+    refreshArrowsActive();
   }, { passive: false });
 
   window.addEventListener('keyup', function (e) {
@@ -53,6 +61,7 @@ window.PB = window.PB || {};
       const stillDown = KEYMAP[a].some(function (code) { return code !== e.code && rawDown[code]; });
       if (!stillDown) held[a] = false;
     }
+    refreshArrowsActive();
   });
 
   // Call once per game tick after processing input, to clear one-frame "pressed" flags.

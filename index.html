@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <title>Pizza Bros.</title>
 <link rel="stylesheet" href="css/style.css">
 </head>
@@ -10,8 +11,24 @@
     <canvas id="game" width="960" height="540"></canvas>
   </div>
   <footer id="footer">
-    Arrows/WASD move &middot; Z/Space/Up jump &middot; Shift/X run &middot; P pause &middot; M mute &middot; R restart &middot; Enter start
+    Arrows move+run &middot; WASD move &middot; Shift/X run &middot; Z/Space/Up jump &middot; P pause &middot; M mute &middot; R restart &middot; Enter start
   </footer>
+
+  <div id="touch-controls" aria-hidden="true">
+    <div class="tc-top-bar">
+      <button type="button" class="tc-btn tc-mini" id="tc-restart" aria-label="Restart level">&#8635;</button>
+      <button type="button" class="tc-btn tc-mini" id="tc-pause" aria-label="Pause">&#10074;&#10074;</button>
+      <button type="button" class="tc-btn tc-mini" id="tc-mute" aria-label="Mute">&#9834;</button>
+    </div>
+    <div class="tc-dpad">
+      <button type="button" class="tc-btn tc-dpad-btn" id="tc-left" aria-label="Move left">&#9664;</button>
+      <button type="button" class="tc-btn tc-dpad-btn" id="tc-right" aria-label="Move right">&#9654;</button>
+    </div>
+    <div class="tc-actions">
+      <button type="button" class="tc-btn tc-walk" id="tc-walk" aria-label="Walk">WALK</button>
+      <button type="button" class="tc-btn tc-jump" id="tc-jump" aria-label="Jump / Start">JUMP</button>
+    </div>
+  </div>
 
   <script src="js/constants.js"></script>
   <script src="js/input.js"></script>
@@ -20,6 +37,7 @@
   <script src="js/level.js"></script>
   <script src="js/entities.js"></script>
   <script src="js/game.js"></script>
+  <script src="js/touch.js"></script>
   <script src="js/main.js"></script>
 </body>
 </html>

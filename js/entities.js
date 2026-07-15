@@ -215,7 +215,7 @@ window.PB = window.PB || {};
 
     const left = input.held.left;
     const right = input.held.right;
-    const running = input.held.run;
+    const running = input.held.run || input.held.arrowsActive;
     const jumpHeld = input.held.jump;
     const jumpPressed = input.pressed.jump;
 
