@@ -316,9 +316,10 @@ window.PB = window.PB || {};
     if (!p.big) setBig(p, true);
   }
 
-  function bouncePlayer(p) {
+  function bouncePlayer(p, en) {
     p.vy = PHY.STOMP_BOUNCE;
     p.onGround = false;
+    if (en) en.bounceCooldown = PHY.STOMP_COOLDOWN;
   }
 
   // =====================================================================
@@ -329,7 +330,7 @@ window.PB = window.PB || {};
       type: 'grunt', x: col * TILE, y: row * TILE, w: TILE, h: TILE,
       vx: -PHY.ENEMY_WALK_SPEED, vy: 0,
       state: 'walk', animTimer: 0, animFrame: 0,
-      squashTimer: 0, dead: false,
+      squashTimer: 0, bounceCooldown: 0, dead: false,
     };
   }
 
@@ -363,7 +364,7 @@ window.PB = window.PB || {};
     return {
       type: 'shellcrab', x: col * TILE, y: row * TILE, w: TILE, h: TILE,
       vx: -PHY.ENEMY_WALK_SPEED, vy: 0,
-      state: 'walk', animTimer: 0, animFrame: 0, dead: false,
+      state: 'walk', animTimer: 0, animFrame: 0, bounceCooldown: 0, dead: false,
     };
   }
 

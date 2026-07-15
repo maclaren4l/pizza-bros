@@ -37,6 +37,7 @@ window.PB = window.PB || {};
     COYOTE_FRAMES: 5,            // frames after leaving ground jump still works
     JUMP_BUFFER_FRAMES: 5,       // frames a jump press is remembered before landing
     STOMP_BOUNCE: -230,          // bounce velocity after stomping an enemy
+    STOMP_COOLDOWN: 0.12,        // seconds an enemy ignores re-collision with the player after being bounced off of
     SHELL_SPEED: 190,            // sliding shell horizontal speed
     ENEMY_WALK_SPEED: 32,        // default grunt/shellcrab walking speed
     INVINCIBLE_TIME: 1.5,        // seconds of flicker invincibility after a hit

@@ -241,6 +241,7 @@ window.PB = window.PB || {};
     for (let i = 0; i < this.enemies.length; i++) {
       const en = this.enemies[i];
       if (en.dead) continue;
+      if (en.bounceCooldown > 0) en.bounceCooldown = Math.max(0, en.bounceCooldown - dt);
       if (en.type === 'grunt') E.updateGrunt(en, this.level, dt);
       else E.updateShellcrab(en, this.level, dt);
     }
@@ -330,6 +331,7 @@ window.PB = window.PB || {};
       const en = this.enemies[i];
       if (en.dead) continue;
       if (en.state === 'squashed') continue;
+      if (en.bounceCooldown > 0) continue;
       if (!E.rectsOverlap(p, en)) continue;
 
       // SMB-style generous rule: airborne and moving downward = stomp,
@@ -340,7 +342,7 @@ window.PB = window.PB || {};
       if (en.type === 'grunt') {
         if (stomp) {
           E.squashGrunt(en);
-          E.bouncePlayer(p);
+          E.bouncePlayer(p, en);
           this.addScore(100);
           this.popup('+100', en.x, en.y);
           PB.audio.play('stomp');
@@ -351,7 +353,7 @@ window.PB = window.PB || {};
         if (en.state === 'walk') {
           if (stomp) {
             E.stompShellcrab(en);
-            E.bouncePlayer(p);
+            E.bouncePlayer(p, en);
             this.addScore(100);
             this.popup('+100', en.x, en.y);
             PB.audio.play('stomp');
@@ -360,7 +362,7 @@ window.PB = window.PB || {};
           }
         } else if (en.state === 'shell_idle') {
           if (stomp) {
-            E.bouncePlayer(p);
+            E.bouncePlayer(p, en);
           } else {
             const dir = p.x < en.x ? 1 : -1;
             E.kickShell(en, dir);
@@ -369,7 +371,7 @@ window.PB = window.PB || {};
           if (stomp) {
             E.stopShell(en);
             this.addScore(100);
-            E.bouncePlayer(p);
+            E.bouncePlayer(p, en);
           } else {
             this.hurtOrKillPlayer();
           }
