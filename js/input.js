@@ -15,6 +15,7 @@ window.PB = window.PB || {};
     mute: ['KeyM'],
     restart: ['KeyR'],
     confirm: ['Enter'],
+    quit: ['Escape'],
   };
 
   // current held state per action

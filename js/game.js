@@ -109,6 +109,13 @@ window.PB = window.PB || {};
     this.state = STATE.PLAYING;
   };
 
+  // Player-initiated quit (Esc) -- ends the run immediately via the same
+  // GAME_OVER screen normally reached by running out of lives.
+  Game.prototype.endGame = function () {
+    this.state = STATE.GAME_OVER;
+    PB.audio.stopMusic();
+  };
+
   Game.prototype.addScore = function (n) { this.score += n; };
 
   Game.prototype.popup = function (text, x, y) {
@@ -181,7 +188,8 @@ window.PB = window.PB || {};
         this.updatePlaying(dt);
         break;
       case STATE.PAUSED:
-        if (PB.input.pressed.pause) this.state = STATE.PLAYING;
+        if (PB.input.pressed.quit) this.endGame();
+        else if (PB.input.pressed.pause) this.state = STATE.PLAYING;
         break;
       case STATE.LEVEL_CLEAR:
         this.updateLevelClear(dt);
@@ -201,6 +209,7 @@ window.PB = window.PB || {};
   };
 
   Game.prototype.updatePlaying = function (dt) {
+    if (PB.input.pressed.quit) { this.endGame(); return; }
     if (PB.input.pressed.pause) { this.state = STATE.PAUSED; return; }
     if (PB.input.pressed.restart) { this.reloadCurrentLevel(); return; }
 
